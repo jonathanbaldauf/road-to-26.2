@@ -576,7 +576,9 @@ const GH = (() => {
   const m = location.hostname.match(/^([^.]+)\.github\.io$/i);
   if(!m) return null;
   const seg = location.pathname.split('/').filter(Boolean)[0];
-  return { owner: m[1], repo: seg && !seg.includes('.') ? seg : location.hostname.toLowerCase() };
+  // A first path segment that isn't a file (index.html) is the repository name, e.g. /road-to-26.2/
+  const isFile = seg && /\.(html?|json)$/i.test(seg);
+  return { owner: m[1], repo: seg && !isFile ? decodeURIComponent(seg) : location.hostname.toLowerCase() };
 })();
 const TOKEN_KEY = 'gh-token';
 let token = store.get(TOKEN_KEY) || '', sha = null, loadError = '';

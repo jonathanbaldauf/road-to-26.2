@@ -51,7 +51,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
 .banner{background:var(--accent-soft);color:var(--ink);border-radius:10px;padding:10px 14px;font-size:.88rem}
 
-.stats{display:grid;grid-template-columns:max-content 1fr 1fr 1.2fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.stats{display:grid;grid-template-columns:24% minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .stat{background:var(--surface);padding:12px 10px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
 .stat:not(.cal-tile){justify-content:center;gap:4px}
 .stat .k{font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -85,12 +85,11 @@ tbody tr:last-child td{border-bottom:0}
 
 /* minimalist month calendar (summary tile) */
 .cal-top{display:flex;justify-content:space-between;align-items:flex-start;gap:4px}
-.cal-tile .mini-legend{max-width:180px}
 .cal-nav{display:flex;gap:2px}
 .cal-nav button{border:0;background:none;width:22px;height:22px;border-radius:50%;color:var(--ink-2);font-size:1rem;line-height:1;display:grid;place-items:center}
 .cal-nav button:hover:not(:disabled){background:var(--surface-2);color:var(--ink)}
 .cal-nav button:disabled{color:var(--line);cursor:default}
-.mini{display:grid;grid-template-columns:repeat(7,24px);row-gap:2px;justify-items:center;margin-top:6px}
+.mini{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));row-gap:2px;justify-items:center;margin-top:6px}
 .mini.dow{margin-top:8px}
 .mini.dow span{font-size:.72rem;color:var(--ink);font-weight:500}
 /* each day: a faint dot; a run is a solid dot shaded by distance; today shows its date, underlined */
@@ -157,7 +156,7 @@ textarea{resize:vertical;min-height:38px}
 
 /* ---------- tablet: summary as a 2 × 2 grid ---------- */
 @media (max-width:860px){
-  .stats{grid-template-columns:max-content 1fr}
+  .stats{grid-template-columns:50% minmax(0,1fr)}
 }
 /* ---------- phone ---------- */
 @media (max-width:600px){
@@ -168,7 +167,6 @@ textarea{resize:vertical;min-height:38px}
   /* summary: calendar across the top, Total and Longest side by side, estimate across the bottom */
   .stats{grid-template-columns:minmax(0,1fr) minmax(0,1fr);border-radius:12px}
   .stats .cal-tile{padding:10px 8px 10px}
-  .cal-tile .mini{grid-template-columns:repeat(7,minmax(0,1fr))}
   .cal-tile .mini-legend{gap:1px 6px;font-size:.62rem}
   .stat{padding:12px 12px 13px}
   .stat .v{font-size:2.2rem}
@@ -268,7 +266,7 @@ textarea{resize:vertical;min-height:38px}
       <label for="f-date">Date<input id="f-date" type="date" required></label>
       <div class="row">
         <label for="f-dist"><span>Distance (<span class="u">mi</span>)</span><input id="f-dist" type="number" inputmode="decimal" step="0.01" min="0" placeholder="6.2" required></label>
-        <label for="f-time">Time<input id="f-time" type="text" inputmode="numeric" placeholder="h:mm:ss" autocomplete="off" required></label>
+        <label for="f-time">Time<input id="f-time" type="text" inputmode="decimal" placeholder="48:17 or 4817" autocomplete="off" required></label>
       </div>
       <label for="f-elev"><span>Elevation gain (<span class="eu">ft</span>)</span><input id="f-elev" type="number" inputmode="numeric" step="1" min="0" placeholder="Optional"></label>
       <label for="f-notes">Notes<textarea id="f-notes" rows="1" placeholder="Optional: route, weather, how it felt"></textarea></label>
@@ -324,12 +322,18 @@ const fmtDist = (m, dp=2) => dist(m).toFixed(dp);
 const fmtElev = m => unit === 'mi' ? Math.round(m / FT) + ' ft' : Math.round(m) + ' m';
 const fmtDate = (s, opts={weekday:'short',month:'short',day:'numeric'}) => parseDay(s).toLocaleDateString(undefined, opts);
 function parseTime(str){
-  str = (str||'').trim(); if(!str) return null;
-  if(!/^\d+(:\d{1,2}){0,2}$/.test(str)) return null;
-  const p = str.split(':').map(Number);
-  if(p.length === 1) return p[0] * 60;              // plain minutes
-  if(p.length === 2) return p[0]*60 + p[1];         // mm:ss
-  return p[0]*3600 + p[1]*60 + p[2];                // h:mm:ss
+  // Phone keypads may lack ":", so "." "," or a space also work, and so do bare digits
+  str = (str||'').trim().replace(/[.,\s]+/g, ':'); if(!str) return null;
+  let p;
+  if(/^\d+$/.test(str)){
+    if(str.length <= 2) return Number(str) * 60;                 // "45" = 45 minutes
+    p = [+(str.slice(0,-4) || 0), +str.slice(-4,-2), +str.slice(-2)]; // "4817" = 48:17, "10522" = 1:05:22
+  } else if(/^\d+(:\d{1,2}){1,2}$/.test(str)){
+    p = str.split(':').map(Number); if(p.length === 2) p.unshift(0);  // mm:ss or h:mm:ss
+  } else return null;
+  const [hr, mn, sc] = p;
+  if(sc > 59 || (hr > 0 && mn > 59)) return null;
+  return hr*3600 + mn*60 + sc;
 }
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(()=> t.hidden = true, 2600) }
@@ -713,7 +717,7 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape' && !sheet.hidd
 
 function updatePreview(){
   const d = parseFloat($('#f-dist').value), s = parseTime($('#f-time').value);
-  $('#preview').innerHTML = d > 0 && s > 0 ? `Pace: <strong>${fmtPace(s/d)} /${unit}</strong>` : 'Pace: <strong>—</strong>';
+  $('#preview').innerHTML = (s > 0 ? `Time: <strong>${fmtDur(s)}</strong> · ` : '') + (d > 0 && s > 0 ? `Pace: <strong>${fmtPace(s/d)} /${unit}</strong>` : 'Pace: <strong>—</strong>');
 }
 $('#f-dist').addEventListener('input', updatePreview);
 $('#f-time').addEventListener('input', updatePreview);
@@ -725,7 +729,7 @@ $('#runForm').addEventListener('submit', async e => {
   const fail = m => { err.textContent = m; err.hidden = false };
   if(!date) return fail('Pick the date of the run.');
   if(!(d > 0)) return fail('Enter a distance greater than zero.');
-  if(!(s > 0)) return fail('Enter the time as h:mm:ss, mm:ss, or whole minutes.');
+  if(!(s > 0)) return fail('Enter the time like 48:17 or 4817. Over an hour: 1:05:22 or 10522.');
   const ed = editing, distStr = $('#f-dist').value, elevStr = $('#f-elev').value.trim();
   const run = { date, seconds: s, notes: $('#f-notes').value.trim().slice(0,300), created: ed ? (ed.run.created || new Date().toISOString()) : new Date().toISOString() };
   // Keep the stored values exactly when a field was left as it was

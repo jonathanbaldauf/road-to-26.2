@@ -80,6 +80,15 @@
       "elevM": 130.4544,
       "notes": "",
       "created": "2026-10-03T12:00:00.000Z"
+    },
+    {
+      "id": "r-2026-10-07-udq5",
+      "date": "2026-10-07",
+      "seconds": 618,
+      "notes": "post soccer heat check",
+      "created": "2026-10-08T02:09:25.536Z",
+      "meters": 2462.29632,
+      "elevM": 19.5072
     }
   ]
 }
